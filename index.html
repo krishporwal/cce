@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🌿 CropCare - Plant Disease Detector</title>
+    <!-- External scripts are kept for context -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     
     <style>
         /* Styling is enhanced for a better user experience */
@@ -186,11 +190,11 @@
                 <div id="profile-icon">👤</div>
                 <div id="profile-dropdown" class="dropdown hidden">
                     <b style="color: green;">Profile</b>
-                    <p style="margin-top:15px;"><b>User:</b> <span id="profile-email">demo@user.com</span></p>
+                    <p style="margin-top:15px;"><b>User:</b> <span id="profile-email">Loading...</span></p>
                     <div id="dropdown-details">
-                        <p><b>Name:</b> <span id="profile-name">Demo User</span></p>
-                        <p><b>Age:</b> <span id="profile-age">N/A</span></p>
-                        <p><b>Gender:</b> <span id="profile-gender">N/A</span></p>
+                        <p><b>Name:</b> <span id="profile-name">Loading...</span></p>
+                        <p><b>Age:</b> <span id="profile-age">Loading...</span></p>
+                        <p><b>Gender:</b> <span id="profile-gender">Loading...</span></p>
                     </div>
                     <button id="logoutBtn">Logout</button>
                 </div>
@@ -228,9 +232,13 @@
         </div>
     </div>
 
-    <script>
-        // --- Global State Variables ---
+    <script type="module">
+        // Mock user data for preview purposes
+        const mockUser = { uid: "mockUserId123", email: "farmer.jane@example.com" };
+        const mockUserData = { firstName: "Jane", lastName: "Doe", age: 34, gender: "Female" };
+
         let diagnosisData = null;
+        let treatmentPlanText = "";
 
         // DOM Elements
         const imageInput = document.getElementById('imageInput');
@@ -243,8 +251,14 @@
         const treatmentSection = document.getElementById('treatment-section');
         const saveBtn = document.getElementById('saveBtn');
 
-        // --- Mock User Profile Logic ---
-        document.getElementById("logoutBtn").addEventListener("click", () => alert("This is a demo. Logout is disabled."));
+        function loadUserProfile() {
+            document.getElementById("profile-email").textContent = mockUser.email;
+            document.getElementById("profile-name").textContent = `${mockUserData.firstName} ${mockUserData.lastName || ''}`;
+            document.getElementById("profile-age").textContent = mockUserData.age;
+            document.getElementById("profile-gender").textContent = mockUserData.gender;
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", () => alert("Logged out successfully."));
         document.getElementById("profile-icon").addEventListener("click", () => document.getElementById("profile-dropdown").classList.toggle("hidden"));
         document.addEventListener("click", (e) => {
             const container = document.querySelector(".profile-container");
@@ -253,7 +267,6 @@
             }
         });
 
-        // --- Core Gemini API Functions ---
         async function analyzeImage(file) {
             spinner.style.display = 'block';
             resultsWrapper.style.display = 'none';
@@ -261,6 +274,7 @@
             treatmentBtn.style.display = 'none';
             treatmentSection.innerHTML = '';
             diagnosisData = null;
+            treatmentPlanText = "";
 
             const formData = new FormData();
             formData.append('file', file);
@@ -270,10 +284,12 @@
                     method: 'POST',
                     body: formData
                 });
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || 'Analysis failed.');
                 }
+
                 diagnosisData = await response.json();
                 
                 diagnosisResultDiv.innerHTML = `
@@ -283,11 +299,14 @@
                     <p><strong>Confidence:</strong> ${diagnosisData.confidence}</p>
                     <p><strong>Description:</strong> ${diagnosisData.description}</p>
                 `;
+
                 resultsWrapper.style.display = 'block';
 
-                if (diagnosisData.is_plant_leaf && diagnosisData.plant !== 'Unsupported Plant' && diagnosisData.disease.toLowerCase() !== 'healthy' && diagnosisData.disease.toLowerCase() !== 'n/a') {
+                // UPDATED LOGIC: Show treatment button only if it's a supported, diseased plant
+                if (diagnosisData.is_plant_leaf && diagnosisData.plant !== 'Unsupported Plant' && diagnosisData.disease.toLowerCase() !== 'healthy') {
                     treatmentBtn.style.display = 'inline-block';
                 }
+
             } catch (error) {
                 diagnosisResultDiv.innerHTML = `<p style='color: red;'>❌ Analysis Error: ${error.message}</p>`;
                 resultsWrapper.style.display = 'block';
@@ -299,6 +318,7 @@
         async function generateTreatmentPlan() {
             if (!diagnosisData || !diagnosisData.disease) return;
 
+            // Activate split-view layout
             analysisContainer.classList.add('split-view');
             treatmentSection.innerHTML = `<p>✨ Generating treatment plan with AI...</p>`;
             
@@ -308,12 +328,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ disease_name: `${diagnosisData.plant} ${diagnosisData.disease}` })
                 });
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || 'Could not generate plan.');
                 }
+
                 const data = await response.json();
-                const treatmentPlanText = data.plan;
+                treatmentPlanText = data.plan;
 
                 const formattedPlan = treatmentPlanText.replace(/\n/g, '<br>');
                 treatmentSection.innerHTML = `
@@ -321,15 +343,16 @@
                     <p>${formattedPlan}</p>
                 `;
                 treatmentBtn.style.display = 'none';
+
             } catch (error) {
                 treatmentSection.innerHTML = `<p style='color: red;'>❌ Error: ${error.message}</p>`;
             }
         }
 
-        // --- Event Listeners ---
         imageInput.addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 previewImg.src = event.target.result;
@@ -341,14 +364,25 @@
         
         treatmentBtn.addEventListener('click', generateTreatmentPlan);
 
-        saveBtn.addEventListener("click", () => {
+        saveBtn.addEventListener("click", async () => {
             if (!diagnosisData) {
                 alert("❗ Please analyze an image first.");
                 return;
             }
-            alert("✅ This is a demo. The 'Save' feature is disabled.");
+            
+            let fullReport = `<h3>Diagnosis</h3>${diagnosisResultDiv.innerHTML}`;
+            if(treatmentPlanText) {
+                fullReport += `<hr><h3>Treatment Plan</h3><p>${treatmentPlanText.replace(/\n/g, '<br>')}</p>`;
+            }
+
+            console.log("--- Simulating Save ---");
+            console.log("UserID:", mockUser.uid);
+            console.log("Report:", fullReport);
+            
+            alert("✅ Result saved successfully (Simulated)!");
         });
 
+        loadUserProfile();
     </script>
 </body>
 </html>
