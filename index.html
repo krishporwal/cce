@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🌿 CropCare - Plant Disease Detector</title>
-    <!-- External scripts are kept for context -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     
     <style>
         /* Styling is enhanced for a better user experience */
@@ -190,11 +186,11 @@
                 <div id="profile-icon">👤</div>
                 <div id="profile-dropdown" class="dropdown hidden">
                     <b style="color: green;">Profile</b>
-                    <p style="margin-top:15px;"><b>User:</b> <span id="profile-email">Loading...</span></p>
+                    <p style="margin-top:15px;"><b>User:</b> <span id="profile-email">demo@user.com</span></p>
                     <div id="dropdown-details">
-                        <p><b>Name:</b> <span id="profile-name">Loading...</span></p>
-                        <p><b>Age:</b> <span id="profile-age">Loading...</span></p>
-                        <p><b>Gender:</b> <span id="profile-gender">Loading...</span></p>
+                        <p><b>Name:</b> <span id="profile-name">Demo User</span></p>
+                        <p><b>Age:</b> <span id="profile-age">N/A</span></p>
+                        <p><b>Gender:</b> <span id="profile-gender">N/A</span></p>
                     </div>
                     <button id="logoutBtn">Logout</button>
                 </div>
@@ -232,37 +228,9 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-        
-        // --- Your Real Firebase Config ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCqKbvDNvl-fUvW95nmXVJ8XcajUeHXwiY",
-            authDomain: "cropcare-85f1f.firebaseapp.com",
-            projectId: "cropcare-85f1f",
-            storageBucket: "cropcare-85f1f.appspot.com",
-            messagingSenderId: "528066088568",
-            appId: "1:528066088568:web:8fafb687d90ce24360278d",
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // --- Your Real EmailJS Config ---
-        (function(){
-            emailjs.init({
-                publicKey: "2L_rdbEr3Nkx_-B5l"
-            });
-        })();
-
+    <script>
         // --- Global State Variables ---
-        let currentUser = null;
-        let userData = null;
         let diagnosisData = null;
-        let treatmentPlanText = "";
 
         // DOM Elements
         const imageInput = document.getElementById('imageInput');
@@ -275,38 +243,8 @@
         const treatmentSection = document.getElementById('treatment-section');
         const saveBtn = document.getElementById('saveBtn');
 
-        // --- Real Firebase Authentication ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user && user.emailVerified) {
-                currentUser = user;
-                try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDocSnap = await getDoc(userDocRef);
-
-                    if (userDocSnap.exists()) {
-                        userData = userDocSnap.data();
-                        document.getElementById("profile-email").textContent = user.email;
-                        document.getElementById("profile-name").textContent = `${userData.firstName} ${userData.lastName || ''}`;
-                        document.getElementById("profile-age").textContent = userData.age;
-                        document.getElementById("profile-gender").textContent = userData.gender;
-                    } else {
-                        console.error("No such user document found in Firestore.");
-                    }
-                } catch (error) {
-                    console.error("Error fetching user data:", error);
-                }
-            } else {
-                alert("Please login with a verified account.");
-                window.location.href = "index.html"; // Redirect to login
-            }
-        });
-
-        document.getElementById("logoutBtn").addEventListener("click", async () => {
-            await signOut(auth);
-            alert("Logged out.");
-            window.location.href = "index.html";
-        });
-
+        // --- Mock User Profile Logic ---
+        document.getElementById("logoutBtn").addEventListener("click", () => alert("This is a demo. Logout is disabled."));
         document.getElementById("profile-icon").addEventListener("click", () => document.getElementById("profile-dropdown").classList.toggle("hidden"));
         document.addEventListener("click", (e) => {
             const container = document.querySelector(".profile-container");
@@ -323,7 +261,6 @@
             treatmentBtn.style.display = 'none';
             treatmentSection.innerHTML = '';
             diagnosisData = null;
-            treatmentPlanText = "";
 
             const formData = new FormData();
             formData.append('file', file);
@@ -348,7 +285,6 @@
                 `;
                 resultsWrapper.style.display = 'block';
 
-                // UPDATED LOGIC: Show treatment button only if it's a supported, diseased plant
                 if (diagnosisData.is_plant_leaf && diagnosisData.plant !== 'Unsupported Plant' && diagnosisData.disease.toLowerCase() !== 'healthy' && diagnosisData.disease.toLowerCase() !== 'n/a') {
                     treatmentBtn.style.display = 'inline-block';
                 }
@@ -363,7 +299,6 @@
         async function generateTreatmentPlan() {
             if (!diagnosisData || !diagnosisData.disease) return;
 
-            // Activate split-view layout
             analysisContainer.classList.add('split-view');
             treatmentSection.innerHTML = `<p>✨ Generating treatment plan with AI...</p>`;
             
@@ -378,7 +313,7 @@
                     throw new Error(errorData.error || 'Could not generate plan.');
                 }
                 const data = await response.json();
-                treatmentPlanText = data.plan;
+                const treatmentPlanText = data.plan;
 
                 const formattedPlan = treatmentPlanText.replace(/\n/g, '<br>');
                 treatmentSection.innerHTML = `
@@ -391,35 +326,7 @@
             }
         }
 
-        // --- Utility and Event Listeners ---
-        function compressImage(image, maxWidth = 500) {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            const ratio = maxWidth / image.width;
-            canvas.width = maxWidth;
-            canvas.height = image.height * ratio;
-            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL("image/jpeg", 0.7);
-        }
-
-        async function sendScanEmail(userEmail, resultText, viewLink) {
-            const scanTime = new Date().toLocaleString();
-            return emailjs.send("service_yr32jrm", "template_abc123", {
-                to_email: userEmail,
-                scan_time: scanTime,
-                reply_to: "noreply@cropcaree.netlify.app",
-                CompanyName: "CropCare",
-                name: `${userData.firstName} ${userData.lastName}`,
-                finalResult: resultText,
-                scan_link: viewLink
-            }).then(() => {
-                console.log("✅ Email sent successfully to:", userEmail);
-            }).catch((error) => {
-                console.error("❌ EmailJS error:", error);
-                alert("❌ Email failed: " + JSON.stringify(error));
-            });
-        }
-
+        // --- Event Listeners ---
         imageInput.addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -434,44 +341,12 @@
         
         treatmentBtn.addEventListener('click', generateTreatmentPlan);
 
-        saveBtn.addEventListener("click", async () => {
+        saveBtn.addEventListener("click", () => {
             if (!diagnosisData) {
                 alert("❗ Please analyze an image first.");
                 return;
             }
-            if (!currentUser) {
-                alert("❗ You must be logged in to save results.");
-                return;
-            }
-            
-            const base64ImageToSave = compressImage(previewImg).replace(/^data:image\/jpeg;base64,/, '');
-            
-            let fullReport = `<h3>Diagnosis Result</h3>
-                <p><strong>Plant:</strong> ${diagnosisData.plant}</p>
-                <p><strong>Detected Issue:</strong> ${diagnosisData.disease}</p>
-                <p><strong>Confidence:</strong> ${diagnosisData.confidence}</p>
-                <p><strong>Description:</strong> ${diagnosisData.description}</p>`;
-
-            if (treatmentPlanText) {
-                fullReport += `<hr><h3>🌿 AI-Generated Treatment Plan</h3><p>${treatmentPlanText.replace(/\n/g, '<br>')}</p>`;
-            }
-
-            try {
-                const docRef = await addDoc(collection(db, "scans"), {
-                    userId: currentUser.uid,
-                    base64Image: base64ImageToSave,
-                    resultText: fullReport,
-                    uploadedAt: serverTimestamp()
-                });
-                
-                const viewLink = `https://cropcaree.netlify.app/view-scan?id=${docRef.id}`;
-                await sendScanEmail(currentUser.email, fullReport, viewLink);
-
-                alert("✅ Result saved & email sent!");
-            } catch (err) {
-                console.error("Save/Email error:", err);
-                alert("❌ Save/email failed: " + err.message);
-            }
+            alert("✅ This is a demo. The 'Save' feature is disabled.");
         });
 
     </script>
