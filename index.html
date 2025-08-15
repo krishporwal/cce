@@ -186,7 +186,7 @@
             <img id="preview" src="#" alt="Upload preview" style="display:none;">
         </div>
         
-        <div id="spinner" style="display:none;">🔄 Analyzing... Please wait.</div>
+        <div id="spinner" style="display:none;">🔄 Analyzing... Please wait. (Server may take up to 50s to wake up)</div>
 
         <div class="results-section" id="results-wrapper" style="display:none;">
             <div id="diagnosis-result">
@@ -267,8 +267,8 @@
             formData.append('file', file);
 
             try {
-                // IMPORTANT: Replace with your deployed backend URL
-                const response = await fetch('http://127.0.0.1:5000/analyze-image', {
+                // UPDATED URL: Pointing to your live Render backend
+                const response = await fetch('https://cce-tt44.onrender.com/analyze-image', {
                     method: 'POST',
                     body: formData
                 });
@@ -312,8 +312,8 @@
             treatmentResultDiv.innerHTML = `<p>✨ Generating treatment plan with AI...</p>`;
             
             try {
-                // IMPORTANT: Replace with your deployed backend URL
-                const response = await fetch('http://127.0.0.1:5000/get-treatment-plan', {
+                // UPDATED URL: Pointing to your live Render backend
+                const response = await fetch('https://cce-tt44.onrender.com/get-treatment-plan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ disease_name: `${diagnosisData.plant} ${diagnosisData.disease}` })
