@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 CropCare - Plant Disease Detector</title>
+    <!-- External scripts are kept for context -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    
+    <style>
+        /* Styling is enhanced for a better user experience */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f6f8;
+            color: #333;
+        }
+        .top-menu {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fff;
+            padding: 10px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .left-title {
+            font-weight: bold;
+            font-size: 24px;
+            color: #2e7d32;
+        }
+        .menu-links {
+            display: flex;
+            align-items: center;
+        }
+        .menu-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #555;
+            font-weight: 500;
+        }
+        .menu-links a.active {
+            color: #2e7d32;
+            border-bottom: 2px solid #2e7d32;
+            padding-bottom: 5px;
+        }
+        .profile-container {
+            position: relative;
+            display: inline-block;
+        }
+        #profile-icon {
+            cursor: pointer;
+            font-size: 24px;
+        }
+        .dropdown {
+            position: absolute;
+            right: 0;
+            top: 40px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            width: 250px;
+            z-index: 100;
+        }
+        .hidden {
+            display: none;
+        }
+        #logoutBtn {
+            width: 100%;
+            padding: 10px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .main-container {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .header-container {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .header-container h1 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+        .upload-section {
+            text-align: center;
+            padding: 20px;
+        }
+        #imageInput {
+            margin-top: 10px;
+        }
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .results-section {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .results-section h3 {
+            color: #2e7d32;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        .button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .action-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .action-btn:hover {
+            background-color: #45a049;
+        }
+        #treatmentBtn {
+            background-color: #ff9800;
+        }
+        #treatmentBtn:hover {
+            background-color: #f57c00;
+        }
+        #spinner {
+            text-align: center;
+            padding: 20px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-menu">
+        <div class="left-title">CropCare</div>
+        <div class="menu-links">
+            <a href="#" class="menu-link">Home</a>
+            <a href="#" class="menu-link active">Disease Detection</a>
+            <a href="#" class="menu-link">History</a>
+            <a href="#" class="menu-link">MarketPlace</a>
+            <a href="#" class="menu-link">Appointment</a>
+            <div class="profile-container">
+                <div id="profile-icon">👤</div>
+                <div id="profile-dropdown" class="dropdown hidden">
+                    <b style="color: green;">Profile</b>
+                    <p style="margin-top:15px;"><b>User:</b> <span id="profile-email">Loading...</span></p>
+                    <div id="dropdown-details">
+                        <p><b>Name:</b> <span id="profile-name">Loading...</span></p>
+                        <p><b>Age:</b> <span id="profile-age">Loading...</span></p>
+                        <p><b>Gender:</b> <span id="profile-gender">Loading...</span></p>
+                    </div>
+                    <button id="logoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="header-container">
+            <h1>🌿 Plant Disease Detector</h1>
+            <p>Upload a clear image of a plant leaf for an AI-powered diagnosis and treatment plan.</p>
+        </div>
+
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*"><br>
+            <img id="preview" src="#" alt="Upload preview" style="display:none;">
+        </div>
+        
+        <div id="spinner" style="display:none;">🔄 Analyzing... Please wait.</div>
+
+        <div class="results-section" id="results-wrapper" style="display:none;">
+            <div id="diagnosis-result">
+                <!-- Gemini Vision analysis will be injected here -->
+            </div>
+            
+            <div class="button-container">
+                 <button id="treatmentBtn" class="action-btn" style="display:none;">✨ Generate Treatment Plan</button>
+                 <button id="saveBtn" class="action-btn">Save Result</button>
+            </div>
+
+            <div id="treatment-result" style="margin-top: 20px;">
+                <!-- Gemini treatment plan will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Mock user data for preview purposes
+        const mockUser = {
+            uid: "mockUserId123",
+            email: "farmer.jane@example.com",
+            emailVerified: true,
+        };
+        const mockUserData = {
+            firstName: "Jane",
+            lastName: "Doe",
+            age: 34,
+            gender: "Female"
+        };
+
+        // State variables to hold results
+        let diagnosisData = null;
+        let treatmentPlanText = "";
+
+        // DOM Elements
+        const imageInput = document.getElementById('imageInput');
+        const previewImg = document.getElementById('preview');
+        const spinner = document.getElementById('spinner');
+        const resultsWrapper = document.getElementById('results-wrapper');
+        const diagnosisResultDiv = document.getElementById('diagnosis-result');
+        const treatmentBtn = document.getElementById('treatmentBtn');
+        const treatmentResultDiv = document.getElementById('treatment-result');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // --- Simulate User Login and Profile Loading ---
+        function loadUserProfile() {
+            document.getElementById("profile-email").textContent = mockUser.email;
+            document.getElementById("profile-name").textContent = `${mockUserData.firstName} ${mockUserData.lastName || ''}`;
+            document.getElementById("profile-age").textContent = mockUserData.age;
+            document.getElementById("profile-gender").textContent = mockUserData.gender;
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", () => alert("Logged out successfully."));
+        document.getElementById("profile-icon").addEventListener("click", () => document.getElementById("profile-dropdown").classList.toggle("hidden"));
+        document.addEventListener("click", (e) => {
+            const container = document.querySelector(".profile-container");
+            if (container && !container.contains(e.target)) {
+                document.getElementById("profile-dropdown").classList.add("hidden");
+            }
+        });
+
+        // --- Core Gemini API Functions ---
+        
+        /**
+         * Analyzes the uploaded image using the Gemini Vision model via our backend.
+         * @param {File} file The image file to analyze.
+         */
+        async function analyzeImage(file) {
+            spinner.style.display = 'block';
+            resultsWrapper.style.display = 'none';
+            treatmentBtn.style.display = 'none';
+            treatmentResultDiv.innerHTML = '';
+            diagnosisData = null;
+            treatmentPlanText = "";
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // IMPORTANT: Replace with your deployed backend URL
+                const response = await fetch('http://127.0.0.1:5000/analyze-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Analysis failed.');
+                }
+
+                diagnosisData = await response.json();
+                
+                diagnosisResultDiv.innerHTML = `
+                    <h3>Diagnosis Result</h3>
+                    <p><strong>Plant:</strong> ${diagnosisData.plant}</p>
+                    <p><strong>Detected Issue:</strong> ${diagnosisData.disease}</p>
+                    <p><strong>Confidence:</strong> ${diagnosisData.confidence}</p>
+                    <p><strong>Description:</strong> ${diagnosisData.description}</p>
+                `;
+
+                resultsWrapper.style.display = 'block';
+
+                // Show treatment button only if a disease is found
+                if (diagnosisData.disease && diagnosisData.disease.toLowerCase() !== 'healthy') {
+                    treatmentBtn.style.display = 'inline-block';
+                }
+
+            } catch (error) {
+                diagnosisResultDiv.innerHTML = `<p style='color: red;'>❌ Analysis Error: ${error.message}</p>`;
+                resultsWrapper.style.display = 'block';
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        /**
+         * Generates a treatment plan for the detected disease using the Gemini text model.
+         */
+        async function generateTreatmentPlan() {
+            if (!diagnosisData || !diagnosisData.disease) return;
+
+            treatmentResultDiv.innerHTML = `<p>✨ Generating treatment plan with AI...</p>`;
+            
+            try {
+                // IMPORTANT: Replace with your deployed backend URL
+                const response = await fetch('http://127.0.0.1:5000/get-treatment-plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ disease_name: `${diagnosisData.plant} ${diagnosisData.disease}` })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Could not generate plan.');
+                }
+
+                const data = await response.json();
+                treatmentPlanText = data.plan; // The backend returns a 'plan' key
+
+                // Format the plan for better readability (replace newlines with <br>)
+                const formattedPlan = treatmentPlanText.replace(/\n/g, '<br>');
+                treatmentResultDiv.innerHTML = `
+                    <h3>🌿 AI-Generated Treatment Plan</h3>
+                    <p>${formattedPlan}</p>
+                `;
+                treatmentBtn.style.display = 'none'; // Hide button after use
+
+            } catch (error) {
+                treatmentResultDiv.innerHTML = `<p style='color: red;'>❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        // --- Event Listeners ---
+        imageInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                previewImg.src = event.target.result;
+                previewImg.style.display = "block";
+                analyzeImage(file); // Trigger analysis immediately
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        treatmentBtn.addEventListener('click', generateTreatmentPlan);
+
+        saveBtn.addEventListener("click", async () => {
+            if (!diagnosisData) {
+                alert("❗ Please analyze an image first.");
+                return;
+            }
+            
+            // Simulate saving to Firestore and sending email
+            let fullReport = `<h3>Diagnosis</h3>${diagnosisResultDiv.innerHTML}`;
+            if(treatmentPlanText) {
+                fullReport += `<hr><h3>Treatment Plan</h3><p>${treatmentPlanText.replace(/\n/g, '<br>')}</p>`;
+            }
+
+            console.log("--- Simulating Save ---");
+            console.log("UserID:", mockUser.uid);
+            console.log("Report:", fullReport);
+            
+            alert("✅ Result saved successfully (Simulated)!");
+        });
+
+        // --- Initial Load ---
+        loadUserProfile();
+    </script>
+</body>
+</html>
