@@ -33,20 +33,18 @@ model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 
 # --- Prompts for the AI ---
-# A detailed prompt for image analysis to ensure structured JSON output
-# UPDATED: Added a specific list of supported plants to the prompt.
+# UPDATED: This prompt is now more robust to handle non-plant and unsupported plant images.
 image_analysis_prompt = """
-You are an expert plant pathologist. Analyze the provided image of a plant leaf.
+You are an expert plant pathologist. Your first task is to determine if the image contains a plant leaf.
+
 Your analysis is restricted to the following plants: Apple, Banana, Cherry, Corn, Grape, Orange, Peach, Pepper, Potato, Raspberry, Soybean, Squash, Strawberry, and Tomato.
 
-If the image contains a plant from this list, identify the plant and any disease you detect.
-If the image contains a plant NOT on this list, or if it is not a plant leaf, you MUST set the 'plant' key to 'Unsupported Plant' and the 'disease' key to 'N/A'.
-
 Provide your response ONLY in a valid JSON format with the following keys:
-- "plant": The common name of the plant from the list, or "Unsupported Plant".
-- "disease": The common name of the disease (e.g., "Black Rot"). If healthy, state "Healthy". If unsupported, state "N/A".
-- "description": A brief, one-paragraph description of the disease and its symptoms. If unsupported, state that the plant is not supported by this service.
-- "confidence": Your confidence level as "High", "Medium", or "Low". If unsupported, set this to "N/A".
+- "is_plant_leaf": A boolean value (true or false).
+- "plant": If is_plant_leaf is true, provide the common name of the plant from the list. If the plant is not on the list, return "Unsupported Plant". If is_plant_leaf is false, return "N/A".
+- "disease": If a supported plant is identified, provide the disease name (e.g., "Black Rot") or "Healthy". If the plant is unsupported or not a leaf, return "N/A".
+- "description": A brief description. If not a plant leaf, state "The uploaded image does not appear to be a plant leaf." If unsupported, state "This plant is not supported by our service." Otherwise, describe the disease.
+- "confidence": Your confidence level ("High", "Medium", "Low"). If not a plant or unsupported, return "N/A".
 
 Do not include any other text or explanations outside of the JSON object.
 """
