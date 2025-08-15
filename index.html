@@ -3,11 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌿 CropCare - Plant Disease Detector</title>
-    <!-- External scripts are kept for context -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <title>🌿 CropCare - Plant Disease Detector (Client-Side)</title>
     
     <style>
         /* Styling is enhanced for a better user experience */
@@ -213,11 +209,9 @@
             <img id="preview" src="#" alt="Upload preview" style="display:none;">
         </div>
         
-        <div id="spinner" style="display:none;">🔄 Analyzing... Please wait. (Server may take up to 50s to wake up)</div>
+        <div id="spinner" style="display:none;">🔄 Analyzing... Please wait.</div>
 
-        <!-- NEW: Container to handle the split-view layout -->
         <div class="analysis-container" id="analysis-container">
-             <!-- Left side of the split -->
             <div class="results-section" id="results-wrapper" style="display:none;">
                 <div id="diagnosis-result"></div>
                 <div class="button-container">
@@ -225,14 +219,14 @@
                      <button id="saveBtn" class="action-btn">Save Result</button>
                 </div>
             </div>
-            <!-- Right side of the split -->
-            <div class="treatment-section" id="treatment-section">
-                <!-- Treatment plan will be injected here -->
-            </div>
+            <div class="treatment-section" id="treatment-section"></div>
         </div>
     </div>
 
     <script type="module">
+        // ⚠️ DANGER: PASTE YOUR API KEY HERE. THIS IS NOT SECURE.
+        const GEMINI_API_KEY = "AIzaSyAtP_7YLYZwU53LVBSVeIO9yyjOBuZ8INU";
+
         // Mock user data for preview purposes
         const mockUser = { uid: "mockUserId123", email: "farmer.jane@example.com" };
         const mockUserData = { firstName: "Jane", lastName: "Doe", age: 34, gender: "Female" };
@@ -251,9 +245,6 @@
         const treatmentSection = document.getElementById('treatment-section');
         const saveBtn = document.getElementById('saveBtn');
 
-        // IMPORTANT: This URL now points to your live backend on Render.
-        const BACKEND_URL = "https://cce-iacl.onrender.com";
-
         function loadUserProfile() {
             document.getElementById("profile-email").textContent = mockUser.email;
             document.getElementById("profile-name").textContent = `${mockUserData.firstName} ${mockUserData.lastName || ''}`;
@@ -270,30 +261,60 @@
             }
         });
 
-        async function analyzeImage(file) {
+        async function analyzeImage(file, base64Image) {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
+                diagnosisResultDiv.innerHTML = `<p style='color: red;'>❌ Configuration Error: Please enter your Gemini API key in the script.</p>`;
+                resultsWrapper.style.display = 'block';
+                return;
+            }
+
             spinner.style.display = 'block';
             resultsWrapper.style.display = 'none';
-            analysisContainer.classList.remove('split-view'); // Reset layout
+            analysisContainer.classList.remove('split-view');
             treatmentBtn.style.display = 'none';
             treatmentSection.innerHTML = '';
             diagnosisData = null;
             treatmentPlanText = "";
 
-            const formData = new FormData();
-            formData.append('file', file);
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            const imageAnalysisPrompt = `
+            You are an expert plant pathologist. Analyze the provided image of a plant leaf.
+            Your analysis is restricted to the following plants: Apple, Banana, Cherry, Corn, Grape, Orange, Peach, Pepper, Potato, Raspberry, Soybean, Squash, Strawberry, and Tomato.
+            If the image contains a plant from this list, identify the plant and any disease you detect.
+            If the image contains a plant NOT on this list, or if it is not a plant leaf, you MUST set the 'plant' key to 'Unsupported Plant' and the 'disease' key to 'N/A'.
+            Provide your response ONLY in a valid JSON format with the following keys:
+            - "plant": The common name of the plant from the list, or "Unsupported Plant".
+            - "disease": The common name of the disease (e.g., "Black Rot"). If healthy, state "Healthy". If unsupported, state "N/A".
+            - "description": A brief, one-paragraph description of the disease and its symptoms. If unsupported, state that the plant is not supported by this service.
+            - "confidence": Your confidence level as "High", "Medium", or "Low". If unsupported, set this to "N/A".
+            Do not include any other text or explanations outside of the JSON object.`;
+
+            const base64ImageData = base64Image.split(',')[1];
+
+            const requestBody = {
+                "contents": [{
+                    "parts": [
+                        { "text": imageAnalysisPrompt },
+                        { "inline_data": { "mime_type": file.type, "data": base64ImageData } }
+                    ]
+                }]
+            };
 
             try {
-                const response = await fetch(`${BACKEND_URL}/analyze-image`, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Analysis failed.');
+                    throw new Error(errorData.error.message || 'Analysis failed.');
                 }
 
-                diagnosisData = await response.json();
+                const responseData = await response.json();
+                const jsonText = responseData.candidates[0].content.parts[0].text;
+                diagnosisData = JSON.parse(jsonText.replace(/```json/g, '').replace(/```/g, '').trim());
                 
                 diagnosisResultDiv.innerHTML = `
                     <h3>Diagnosis Result</h3>
@@ -305,8 +326,6 @@
 
                 resultsWrapper.style.display = 'block';
 
-                // --- THIS IS THE CORRECTED LOGIC ---
-                // Show the treatment button only if the plant is supported and has a disease.
                 if (diagnosisData.plant !== 'Unsupported Plant' && diagnosisData.disease.toLowerCase() !== 'healthy') {
                     treatmentBtn.style.display = 'inline-block';
                 }
@@ -322,24 +341,39 @@
         async function generateTreatmentPlan() {
             if (!diagnosisData || !diagnosisData.disease) return;
 
-            // Activate split-view layout
             analysisContainer.classList.add('split-view');
             treatmentSection.innerHTML = `<p>✨ Generating treatment plan with AI...</p>`;
             
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            const treatmentPlanPromptTemplate = `
+            You are an agricultural advisor. A farmer has identified "{disease_name}" on their plant.
+            Generate a concise, actionable treatment plan. Structure the plan with the following sections:
+            1.  **Immediate Actions:** What to do right now (e.g., pruning, isolating plants).
+            2.  **Organic Solutions:** Safe, organic treatment options.
+            3.  **Chemical Solutions:** Common and effective fungicides or treatments to recommend.
+            4.  **Prevention Tips:** How to prevent this issue in the future.
+            Keep the language clear and easy for a non-expert to understand.`;
+            
+            const prompt = treatmentPlanPromptTemplate.replace("{disease_name}", `${diagnosisData.plant} ${diagnosisData.disease}`);
+
+            const requestBody = {
+                "contents": [{ "parts": [{ "text": prompt }] }]
+            };
+
             try {
-                const response = await fetch(`${BACKEND_URL}/get-treatment-plan`, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ disease_name: `${diagnosisData.plant} ${diagnosisData.disease}` })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Could not generate plan.');
+                    throw new Error(errorData.error.message || 'Could not generate plan.');
                 }
 
                 const data = await response.json();
-                treatmentPlanText = data.plan;
+                treatmentPlanText = data.candidates[0].content.parts[0].text;
 
                 const formattedPlan = treatmentPlanText.replace(/\n/g, '<br>');
                 treatmentSection.innerHTML = `
@@ -361,7 +395,7 @@
             reader.onload = (event) => {
                 previewImg.src = event.target.result;
                 previewImg.style.display = "block";
-                analyzeImage(file);
+                analyzeImage(file, event.target.result);
             };
             reader.readAsDataURL(file);
         });
